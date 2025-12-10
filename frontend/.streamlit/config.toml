@@ -1,0 +1,9 @@
+[theme]
+base = "light"
+
+backgroundColor = "#dff8e6"            # soft mint green (GitHub-friendly)
+secondaryBackgroundColor = "#ffffff"   # white panels
+primaryColor = "#0d7a44"               # professional green accent
+textColor = "#062d1b"                  # dark green text
+
+font = "sans serif"
