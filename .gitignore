@@ -13,3 +13,5 @@ productdoc.db
 
 # Virtual environment (if you create later)
 venv/
+
+frontend/users.db

@@ -1,294 +1,310 @@
-# frontend/app.py
+import os
+import time
+import json
+from typing import Optional
 
-import requests
 import streamlit as st
+import requests
+from dotenv import load_dotenv
 
-# ======================================================================
-# CONFIG
-# ======================================================================
+load_dotenv()
 
-# If you run locally, change this to "http://127.0.0.1:8000"
-API_BASE = "https://productdoc-autosuite.onrender.com"
-GENERATE_URL = f"{API_BASE}/generate"
-HISTORY_URL = f"{API_BASE}/history"
-
-st.set_page_config(
-    page_title="ProductDoc AutoSuite",
-    page_icon="📄",
-    layout="wide",
-)
+# Config
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+ADMIN_BYPASS = os.getenv("ADMIN_BYPASS", "False").lower() in ("1", "true", "yes")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+REQUEST_TIMEOUT = 10
 
 
-# ======================================================================
-# STYLES
-# ======================================================================
+# Helpers: backend wrappers
 
-CUSTOM_CSS = """
-<style>
-body {
-    background-color: #020617;
-}
-.block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
-}
-.big-hero {
-    padding: 1.5rem 2rem;
-    border-radius: 20px;
-    background: radial-gradient(circle at top left, #1e293b, #020617);
-    border: 1px solid rgba(148, 163, 184, 0.3);
-}
-.big-title {
-    font-size: 2.8rem;
-    font-weight: 800;
-    letter-spacing: 0.03em;
-    background: linear-gradient(90deg, #22d3ee, #a855f7, #f97316);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.4rem;
-}
-.big-subtitle {
-    font-size: 0.98rem;
-    color: #e5e7eb;
-}
-.section-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #e5e7eb;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.6rem;
-}
-.section-card {
-    padding: 1rem 1.1rem;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #020617, #020617);
-    border: 1px solid rgba(148, 163, 184, 0.3);
-}
-.stTextArea textarea {
-    background-color: #020617 !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(148, 163, 184, 0.5) !important;
-    color: #e5e7eb !important;
-}
-.stSlider > div[data-baseweb="slider"] > div {
-    background: linear-gradient(90deg,#fb7185,#a855f7,#22d3ee);
-}
-.result-card {
-    padding: 0.8rem 1rem;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: radial-gradient(circle at top left, #020617, #020617);
-    color: #e5e7eb;
-    min-height: 200px;
-    font-size: 0.94rem;
-    line-height: 1.5;
-}
-.badge {
-    display: inline-block;
-    padding: 0.18rem 0.55rem;
-    border-radius: 999px;
-    background: rgba(148,163,184,0.15);
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: #9ca3af;
-    margin-bottom: 0.2rem;
-}
-.error-banner {
-    padding: 0.6rem 0.9rem;
-    border-radius: 12px;
-    background: #450a0a;
-    border: 1px solid #b91c1c;
-    color: #fecaca;
-    font-size: 0.9rem;
-}
-.history-item {
-    padding: 0.5rem 0.6rem;
-    border-radius: 10px;
-    border: 1px solid rgba(148,163,184,0.25);
-    margin-bottom: 0.35rem;
-    cursor: default;
-}
-.history-brief {
-    font-size: 0.85rem;
-    color: #e5e7eb;
-}
-.history-meta {
-    font-size: 0.75rem;
-    color: #9ca3af;
-}
-</style>
-"""
-
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
-
-
-# ======================================================================
-# BACKEND HELPERS
-# ======================================================================
-
-def call_generate(brief: str, depth: int):
-    """Call backend /generate endpoint."""
+def backend_available() -> bool:
     try:
-        payload = {"brief": brief, "depth": depth}
-        resp = requests.post(GENERATE_URL, json=payload, timeout=60)
-        if resp.status_code == 200:
-            return resp.json(), None
-        return None, f"Backend error {resp.status_code}: {resp.text}"
-    except Exception as e:
-        return None, f"Request failed: {e}"
+        r = requests.get(f"{BACKEND_URL}/health", timeout=3)
+        return r.status_code == 200
+    except Exception:
+        return False
 
 
-def load_history():
-    """Load last 10 generations from backend."""
+def backend_signup(email: str, password: str) -> (bool, str):
+    """Call backend signup; return (ok, message)."""
     try:
-        resp = requests.get(HISTORY_URL, timeout=20)
-        if resp.status_code == 200:
-            return resp.json(), None
-        return None, f"Could not load history from backend (status {resp.status_code})."
+        r = requests.post(
+            f"{BACKEND_URL}/signup",
+            json={"email": email, "password": password},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if r.status_code in (200, 201):
+            return True, "Account created successfully."
+        else:
+            data = r.json() if r.headers.get("content-type", "").startswith("application/") else {}
+            msg = data.get("detail", r.text[:200])
+            return False, f"Signup failed: {msg}"
     except Exception as e:
-        return None, f"Could not load history from backend: {e}"
+        return False, f"Signup error: {e}"
 
 
-# ======================================================================
-# UI LAYOUT
-# ======================================================================
-
-# Hero
-with st.container():
-    st.markdown(
-        """
-        <div class="big-hero">
-            <div class="big-title">ProductDoc AutoSuite</div>
-            <div class="big-subtitle">
-                Turn a short product idea into a PRD, landing page, and FAQ – powered by AI.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-st.write("")
-
-left, right = st.columns([1.4, 1.1], gap="large")
-
-# ----------------------------------------------------------------------
-# LEFT COLUMN – INPUT + RESULTS
-# ----------------------------------------------------------------------
-with left:
-    st.markdown(
-        '<div class="section-title">🧠 Product Brief</div>',
-        unsafe_allow_html=True,
-    )
-
-    with st.container():
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        brief = st.text_area(
-            "",
-            placeholder=(
-                "Example: AI tool that helps small businesses create marketing "
-                "content automatically using templates."
-            ),
-            height=130,
+def backend_login(email: str, password: str) -> (bool, Optional[str], str):
+    """Call backend login; return (ok, token_or_none, message)."""
+    try:
+        r = requests.post(
+            f"{BACKEND_URL}/login",
+            json={"email": email, "password": password},
+            timeout=REQUEST_TIMEOUT,
         )
-
-        depth = st.slider(
-            "Depth (detail level)",
-            min_value=1,
-            max_value=3,
-            value=2,
-            help="1 = short draft, 3 = deep detailed document",
-        )
-
-        generate_clicked = st.button("Generate", type="primary")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.write("")
-
-    # Results area
-    st.markdown(
-        '<div class="section-title">📄 Generated Documents</div>',
-        unsafe_allow_html=True,
-    )
-
-    tabs = st.tabs(["PRD", "Landing Page", "FAQ"])
-
-    if "last_output" not in st.session_state:
-        st.session_state.last_output = {}
-
-    error_msg = None
-
-    if generate_clicked:
-        if not brief.strip():
-            error_msg = "Please write a short product brief before generating."
+        if r.status_code == 200:
+            data = r.json()
+            token = data.get("token") or data.get("access_token") or data.get("detail")
+            # If backend returns token in some other shape, attempt to pick it
+            if not token and "token" in data:
+                token = data["token"]
+            return True, token, "Logged in"
         else:
-            with st.spinner("Calling backend and generating documents..."):
-                output, err = call_generate(brief.strip(), depth)
-            if err:
-                error_msg = err
-            else:
-                st.session_state.last_output = output or {}
+            data = r.json() if r.headers.get("content-type", "").startswith("application/") else {}
+            msg = data.get("detail", r.text[:200])
+            return False, None, f"Login failed: {msg}"
+    except Exception as e:
+        return False, None, f"Login error: {e}"
 
-    if error_msg:
-        st.markdown(
-            f'<div class="error-banner">{error_msg}</div>',
-            unsafe_allow_html=True,
+
+def backend_generate(token: Optional[str], brief: str, depth: int):
+    """Call backend /generate (POST). Return dict or raise."""
+    payload = {"brief": brief, "depth": depth}
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    r = requests.post(f"{BACKEND_URL}/generate", json=payload, headers=headers, timeout=REQUEST_TIMEOUT * 4)
+    r.raise_for_status()
+    return r.json()
+
+
+def backend_history(token: Optional[str]):
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    r = requests.get(f"{BACKEND_URL}/history", headers=headers, timeout=REQUEST_TIMEOUT)
+    r.raise_for_status()
+    return r.json()
+
+
+# Demo fallbacks
+
+def demo_generate(brief: str, depth: int):
+    """Safe offline fallback - gives canned content when backend/LLM not available."""
+    brief_short = brief.strip()[:120]
+    output = {
+        "PRD": f"Demo PRD for: {brief_short}\n\n(Expand this with the real backend.)",
+        "Landing Page": f"{brief_short} — catchy one-liner, subtitle, features, CTA.",
+        "FAQ": "\n".join([f"Q{i+1}: Example question?\nA: Example answer." for i in range(5 if depth < 3 else 10)]),
+        # Removed "Video Script" — our model does not provide video scripts
+        # Keep demo outputs aligned with actual supported features
+    }
+
+    time.sleep(0.8)
+    return output
+
+
+def demo_history():
+    return []
+
+
+# Authentication & session
+
+def init_session_state():
+    if "token" not in st.session_state:
+        st.session_state["token"] = None
+    if "user_email" not in st.session_state:
+        st.session_state["user_email"] = None
+    if "last_generation" not in st.session_state:
+        st.session_state["last_generation"] = None
+    if "history" not in st.session_state:
+        st.session_state["history"] = None
+
+
+def developer_auto_login_if_enabled():
+    """If ADMIN_BYPASS is enabled, auto-set session token/email for the dev."""
+    if ADMIN_BYPASS and ADMIN_EMAIL:
+        st.session_state["token"] = "DEV-BYPASS-TOKEN"
+        st.session_state["user_email"] = ADMIN_EMAIL
+        st.sidebar.success(f"Developer mode: logged in as {ADMIN_EMAIL}")
+
+
+# UI pieces
+
+def login_signup_sidebar():
+    st.sidebar.header("Account")
+    if ADMIN_BYPASS and ADMIN_EMAIL:
+        st.sidebar.info("Developer bypass is enabled (see .env).")
+
+        if st.sidebar.button("Logout (dev)"):
+            st.session_state["token"] = None
+            st.session_state["user_email"] = None
+        return st.session_state["token"] is not None
+
+    if st.session_state["token"]:
+        st.sidebar.success(f"Logged in as {st.session_state.get('user_email')}")
+        if st.sidebar.button("Logout"):
+            st.session_state["token"] = None
+            st.session_state["user_email"] = None
+        return True
+
+    # Tabs: Login / Signup
+    tab_login, tab_signup = st.sidebar.tabs(["Login", "Sign up"])
+
+    with tab_login:
+        st.write("Log in to access generation & history.")
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_password")
+        if st.button("Login"):
+            if not email or not password:
+                st.warning("Please enter email and password.")
+            else:
+                if backend_available():
+                    ok, token, msg = backend_login(email, password)
+                    if ok and token:
+                        st.session_state["token"] = token
+                        st.session_state["user_email"] = email
+                        st.success("Logged in successfully.")
+                    else:
+                        st.error(msg)
+                else:
+                    st.error("Backend unavailable — cannot log in right now.")
+
+    with tab_signup:
+        st.write("Create a new account (backend required).")
+        new_email = st.text_input("New email", key="signup_email")
+        new_password = st.text_input("New password", type="password", key="signup_password")
+        if st.button("Sign up"):
+            if not new_email or not new_password:
+                st.warning("Please enter email and password.")
+            else:
+                if backend_available():
+                    ok, msg = backend_signup(new_email, new_password)
+                    if ok:
+                        st.success("Account created — please switch to Login tab and sign in.")
+                    else:
+                        st.error(msg)
+                else:
+                    st.error("Backend unavailable — cannot create account right now.")
+
+    return st.session_state.get("token") is not None
+
+
+# Main app
+
+def main():
+    st.set_page_config(page_title="ProductDoc AutoSuite", layout="wide")
+    st.title("ProductDoc AutoSuite")
+    # Updated caption to remove reference to video scripts
+    st.caption("Generate PRD, landing page copy, FAQ and marketing copy from a short product brief.")
+
+    init_session_state()
+    developer_auto_login_if_enabled()
+
+    # Sidebar login / signup
+    logged_in = login_signup_sidebar()
+
+    # Info bar about backend availability
+    backend_ok = backend_available()
+    if backend_ok:
+        st.info(f"Backend available: {BACKEND_URL}")
+    else:
+        st.warning("Backend not reachable – the app will run in demo mode for generation/history.")
+
+    # Main layout
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.subheader("Write product brief (2-3 lines)")
+        brief = st.text_area("Product brief", height=150, placeholder="AI tool that helps small businesses create marketing content automatically using templates.")
+        depth = st.slider("Depth (detail level)", min_value=1, max_value=3, value=2)
+
+        if st.button("Generate"):
+            if not brief.strip():
+                st.warning("Please provide a product brief.")
+            else:
+                with st.spinner("Generating..."):
+                    try:
+                        if backend_ok:
+                            token = st.session_state.get("token")
+                            try:
+                                res = backend_generate(token, brief, depth)
+                            except requests.HTTPError as he:
+                                # If backend returns an HTTP error, fallback to demo
+                                st.error(f"Backend generation failed: {he}. Using demo output.")
+                                res = demo_generate(brief, depth)
+                            except Exception as e:
+                                st.error(f"Network error during generation: {e}. Using demo output.")
+                                res = demo_generate(brief, depth)
+                        else:
+                            res = demo_generate(brief, depth)
+                    except Exception as e:
+                        st.error(f"Unexpected error: {e}")
+                        res = demo_generate(brief, depth)
+
+                    # store and show
+                    st.session_state["last_generation"] = res
+                    st.success("Generation complete (see below).")
+
+        # Display last generation
+        if st.session_state.get("last_generation"):
+            gen = st.session_state["last_generation"]
+            st.markdown("### Results")
+            for section_name, content in gen.items():
+                st.markdown(f"**{section_name}**")
+                st.write(content)
+
+    with col2:
+        st.subheader("History (last 10)")
+        # Fetch history from backend if possible
+        history_displayed = False
+        if backend_ok:
+            try:
+                token = st.session_state.get("token")
+                history = backend_history(token)
+                st.session_state["history"] = history
+                if history:
+                    for item in history:
+                        brief_text = item.get("brief") or item.get("title") or "—"
+                        created = item.get("created_at", "")
+                        st.markdown(f"- **{brief_text}** — {created}")
+                    history_displayed = True
+                else:
+                    st.info("No history yet. Generate something first.")
+                    history_displayed = True
+            except Exception as e:
+                st.warning(f"Could not load history from backend: {e}")
+        if not history_displayed:
+            demo_hist = demo_history()
+            if demo_hist:
+                for item in demo_hist:
+                    st.markdown(f"- {item}")
+            else:
+                st.info("History unavailable (backend offline).")
+
+        st.markdown("---")
+        st.subheader("Quick tips")
+        st.write(
+            """
+            • Try a short 1–2 line brief.  
+            • Use depth=3 for more detailed output.  
+            • If the backend is offline the app uses demo outputs so you can still show the UI.
+            """
         )
 
-    # Show outputs (or placeholders)
-    prd_text = st.session_state.last_output.get("PRD", "No PRD generated yet.")
-    lp_text = st.session_state.last_output.get("Landing Page", "No landing page generated yet.")
-    faq_text = st.session_state.last_output.get("FAQ", "No FAQ generated yet.")
+    st.markdown("---")
+    st.caption("Developer: add BACKEND_URL and optional ADMIN_BYPASS/ADMIN_EMAIL in .env to enable developer auto-login.")
 
-    with tabs[0]:
-        st.markdown('<div class="badge">Product Requirements Document</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="result-card">{prd_text.replace("\\n", "<br>")}</div>', unsafe_allow_html=True)
-
-    with tabs[1]:
-        st.markdown('<div class="badge">Landing Page Copy</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="result-card">{lp_text.replace("\\n", "<br>")}</div>', unsafe_allow_html=True)
-
-    with tabs[2]:
-        st.markdown('<div class="badge">FAQ</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="result-card">{faq_text.replace("\\n", "<br>")}</div>', unsafe_allow_html=True)
+    # Debug: small panel for developer to see session info (only show if dev bypass)
+    if ADMIN_BYPASS and ADMIN_EMAIL:
+        with st.expander("Dev info (session)"):
+            st.json({
+                "token": st.session_state.get("token"),
+                "user_email": st.session_state.get("user_email"),
+                "backend_ok": backend_ok,
+                "backend_url": BACKEND_URL,
+            })
 
 
-# ----------------------------------------------------------------------
-# RIGHT COLUMN – HISTORY
-# ----------------------------------------------------------------------
-with right:
-    st.markdown(
-        '<div class="section-title">📊 History (last 10)</div>',
-        unsafe_allow_html=True,
-    )
-
-    hist, hist_error = load_history()
-
-    with st.container():
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-
-        if hist_error:
-            st.markdown(
-                f'<div class="error-banner">{hist_error}</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            if not hist:
-                st.write("No history yet. Generate something first 🙂")
-            else:
-                for item in hist:
-                    st.markdown(
-                        f"""
-                        <div class="history-item">
-                            <div class="history-brief">{item.get("brief","")[:120]}...</div>
-                            <div class="history-meta">
-                                depth={item.get("depth", "")} • id={item.get("id","")}
-                            </div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-        st.markdown("</div>", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()

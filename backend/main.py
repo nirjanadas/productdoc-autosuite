@@ -11,7 +11,7 @@ from . import models
 from .utils import safe_generate
 
 
-# --------- INIT ---------
+# INIT
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -28,7 +28,7 @@ app.add_middleware(
 )
 
 
-# --------- DB DEP ---------
+# DB DEP 
 def get_db():
     db = SessionLocal()
     try:
@@ -37,7 +37,7 @@ def get_db():
         db.close()
 
 
-# --------- ROUTES ---------
+# ROUTES 
 @app.get("/health")
 def check():
     return {"status": "ok"}

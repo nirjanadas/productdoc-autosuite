@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# SQLite database file in your project folder
+# SQLite database file in project folder
 SQLALCHEMY_DATABASE_URL = "sqlite:///./productdoc.db"
 
 engine = create_engine(
