@@ -43,8 +43,9 @@ Built using OpenAI models, with clean modular architecture, user authentication,
  
 ---
 
-##  Project Structure
+##  📁 Project Structure
 
+ <pre>
 productdoc_autosuite/
 │
 ├── backend/
@@ -63,7 +64,7 @@ productdoc_autosuite/
 ├── .env.example
 ├── .gitignore
 └── README.md
-
+</pre>
 
 
 ---
