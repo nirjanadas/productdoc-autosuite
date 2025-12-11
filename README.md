@@ -5,61 +5,66 @@
 
 ---
 
-# ⚡ AutoGen AI  
+# ⚡ AutoGen AI
+
+![AUTOGEN UI](assets/ui_preview.png)
+
 AI-powered product documentation generator with a modular FastAPI backend and a Streamlit frontend.
 
 AutoGen AI converts a short product brief into high-quality outputs:
-- Product requirement documents (PRDs)
+- Product Requirement Documents (PRDs)
 - Landing page content
 - FAQs
-- Custom marketing copy
+- Marketing copy
 
-Built using OpenAI models, with clean modular architecture, user authentication, and history tracking.
- 
+Built with OpenAI models, a clean modular architecture, user authentication, and per-user history tracking.
 
 ---
 
 ## 🚀 Features
 
-### 🔹 **1. Streamlit Frontend**
-- Clean UI for writing a short product brief
-- Adjustable depth slider for level of detail
-- History panel for last 10 generations
-- Responsive layout for easy demo and usage
- 
- ### 🔹 **2. FastAPI Backend**
+### 🔹 Streamlit Frontend
+- Clean UI for writing a short product brief  
+- Adjustable depth slider for level of detail  
+- History panel for last 10 generations  
+- Responsive layout for demo & usage
 
-      Endpoints
-      - `/generate` – generate PRD, FAQ, landing page content, marketing copy 
-      - `/signup` – register users  
-      - `/login` – authenticate users  
-      - `/history` – recent 10 generations  
+### 🔹 FastAPI Backend
+**Endpoints**
+```bash
+/generate  # generate PRD, FAQ, landing page, marketing copy
+/signup    # register users
+/login     # authenticate users
+/history   # fetch recent generations
+```
 
-      Modular Architecture
-      - `main.py` → API routers  
-      - `database.py` → SQLite + SQLAlchemy DB  
-      - `models.py` → ORM models  
-      - `prompts.py` → prompt templates  
-      - `utils.py` → helper utilities  
+**Modular architecture**
+```text
+main.py      -> API routers
+database.py  -> SQLite + SQLAlchemy DB
+models.py    -> ORM models
+prompts.py   -> prompt templates
+utils.py     -> helper utilities
+```
 
-### 🔹 **3. User Authentication**
-- Secure password hashing using `bcrypt`
-- SQLite storage for users + generation history
-- Simple token-based session flow (suitable for demo and learning environments)
+### 🔹 User Authentication
+- Passwords hashed securely with `bcrypt`  
+- SQLite storage for users & generation history  
+- Simple token/session-based flow (demo-friendly)
 
- ### 🔹**4. AI Integration**
- - OpenAI GPT models for all content generation
- - Centralized prompt templates for consistent outputs
- 
+### 🔹 AI Integration
+- OpenAI GPT models for content generation  
+- Centralized prompt templates for consistent outputs  
+- Offline-safe demo fallback
+
 ---
 
-##  📁 Project Structure
+## 📁 Project Structure
 
- <pre>
+```text
 auto_gen_ai/
-│
-├── assets
-|    ├── ui_preview.png
+├── assets/
+│   └── ui_preview.png
 ├── backend/
 │   ├── main.py
 │   ├── database.py
@@ -67,19 +72,15 @@ auto_gen_ai/
 │   ├── prompts.py
 │   ├── utils.py
 │   └── routers/
-│
 ├── frontend/
 │   ├── app.py
 │   └── requirements.txt
-│
 ├── productdoc.db
 ├── .env.example
 ├── .gitignore
 ├── README.md
 └── LICENSE
-  
-</pre>
-
+```
 
 ---
 
@@ -116,81 +117,93 @@ auto_gen_ai/
 │                                                                               │
 │   • backend/database.py                                                       │
 └───────────────────────────────────────────────────────────────────────────────┘
-
 ```
+
 ---
 
 ## ⚙️ Installation & Setup
 
-### 🔹 **1.Clone the repository**
-```git clone https://github.com/nirjanadas/autogen-ai.git```
-```cd autogen-ai```
+### 1. Clone the repository
+```bash
+git clone https://github.com/nirjanadas/auto-gen-ai.git
+cd auto-gen-ai
+```
 
-### 🔹 **2.Install dependencies**
-```pip install -r requirements.txt```
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
-### 🔹 **3.Create a .env file**
-```BACKEND_URL=http://localhost:8000```
-```OPENAI_API_KEY=your_key_here```
+### 3. Create a `.env` file
+```env
+BACKEND_URL=http://localhost:8000
+OPENAI_API_KEY=your_key_here
+```
 
-### 🔹 **4.Run the backend**
-```cd backend```
-```uvicorn main:app --reload --port 8000```
+### 4. Run the backend
+```bash
+cd backend
+uvicorn main:app --reload --port 8000
+```
 
-### 🔹 **5.Run the frontend**
-```cd frontend```
-```streamlit run app.py```
+### 5. Run the frontend
+```bash
+cd frontend
+streamlit run app.py
+```
 
 ---
 
 ## 🔐 Authentication Flow
-- User signs up with email + password
-- Passwords are securely hashed using bcrypt
-- Login returns a simple session token
-- User ID is attached to authenticated requests
+- Users sign up with email & password  
+- Passwords are hashed with `bcrypt`  
+- Login returns a session token  
+- Per-user generation history is stored in SQLite
 
 ---
 
-## 🧠 Tech Stack
+───────────────────────────────────────────────────────────────
+🖥️ FRONTEND
+───────────────────────────────────────────────────────────────
+• Streamlit        – UI framework
+• Python           – Core language
 
-<div align="center">
 
-### 🖥️ **Frontend**
-| Technology | Purpose |
-|-----------|----------|
-| 🎨 Streamlit | UI & user interaction |
-| 🐍 Python | Core language |
+───────────────────────────────────────────────────────────────
+⚙️ BACKEND
+───────────────────────────────────────────────────────────────
+• FastAPI          – API framework
+• SQLAlchemy       – ORM layer
+• SQLite           – Lightweight database
 
-### ⚙️ **Backend**
-| Technology | Purpose |
-|-----------|----------|
-| 🚀 FastAPI | API framework |
-| 🏗️ SQLAlchemy | ORM & database layer |
-| 🗄️ SQLite | Lightweight database |
 
-### 🤖 **AI**
-| Technology | Purpose |
-|-----------|----------|
-| 🔮 OpenAI GPT Models | Content generation |
+───────────────────────────────────────────────────────────────
+🤖 AI / NLP
+───────────────────────────────────────────────────────────────
+• OpenAI GPT Models – Content generation
+• Prompt Engineering – Structured templates
 
-### 🔐 **Security**
-| Technology | Purpose |
-|-----------|----------|
-| 🔑 bcrypt | Password hashing |
-| 🧩 .env Config | Secure environment variables |
 
-</div>
+───────────────────────────────────────────────────────────────
+🔐 SECURITY
+───────────────────────────────────────────────────────────────
+• bcrypt           – Password hashing
+• .env Config      – Secure environment variables
+
+
+───────────────────────────────────────────────────────────────
+🛠️ SOFTWARE ENGINEERING
+───────────────────────────────────────────────────────────────
+• Clean Architecture
+• Modular Backend Design
+• Error Handling & Fallbacks
+• Git / GitHub Version Control
 
 
 ---
 
 ## 🤝 Contributions
+Contributions welcome. For major changes, please open an issue to discuss.
 
-Contributions are welcome.
-For major changes, please open an issue to discuss your proposal.
- 
-
-
-
- 
+---
 
