@@ -125,21 +125,26 @@ auto_gen_ai/
 ## ⚙️ Installation & Setup
 
 ### 🔹 **1.Clone the repository**
+
 ```git clone https://github.com/nirjanadas/autogen-ai.git```
 ```cd autogen-ai```
 
 ### 🔹 **2.Install dependencies**
+
 ```pip install -r requirements.txt```
 
 ### 🔹 **3.Create a .env file**
+
 ```BACKEND_URL=http://localhost:8000```
 ```OPENAI_API_KEY=your_key_here```
 
 ### 🔹 **4.Run the backend**
+
 ```cd backend```
 ```uvicorn main:app --reload --port 8000```
 
 ### 🔹 **5.Run the frontend**
+
 ```cd frontend```
 ```streamlit run app.py```
 
