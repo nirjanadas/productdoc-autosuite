@@ -75,7 +75,9 @@ productdoc_autosuite/
 ├── productdoc.db
 ├── .env.example
 ├── .gitignore
-└── README.md
+├── README.md
+└── LICENSE
+  
 </pre>
 
 
